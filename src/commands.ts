@@ -14,9 +14,9 @@ export type HelpContent = {
 };
 
 export type CliCommand =
-  | {kind: "help"; exitCode: 0}
-  | {kind: "init"; exitCode: 0; dryRun: boolean}
-  | {kind: "update"; exitCode: 0; dryRun: boolean}
+  | { kind: "help"; exitCode: 0 }
+  | { kind: "init"; exitCode: 0; dryRun: boolean }
+  | { kind: "update"; exitCode: 0; dryRun: boolean }
   | {
       kind: "error";
       exitCode: 1;
@@ -27,7 +27,7 @@ const supportedCommands = new Set(["init", "update"]);
 
 export function parseCommand(argv: string[]): CliCommand {
   if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
-    return {kind: "help", exitCode: 0};
+    return { kind: "help", exitCode: 0 };
   }
 
   const [command, ...args] = argv;
@@ -36,7 +36,7 @@ export function parseCommand(argv: string[]): CliCommand {
     return {
       kind: "error",
       exitCode: 1,
-      message: `Unknown command: ${command ?? ""}`.trim()
+      message: `Unknown command: ${command ?? ""}`.trim(),
     };
   }
 
@@ -45,13 +45,13 @@ export function parseCommand(argv: string[]): CliCommand {
 
 function parseActionCommand(
   command: "init" | "update",
-  args: string[]
+  args: string[],
 ): CliCommand {
   let dryRun = false;
 
   for (const arg of args) {
     if (arg === "--help" || arg === "-h") {
-      return {kind: "help", exitCode: 0};
+      return { kind: "help", exitCode: 0 };
     }
 
     if (arg === "--dry-run") {
@@ -59,7 +59,7 @@ function parseActionCommand(
         return {
           kind: "error",
           exitCode: 1,
-          message: `Unknown ${command} option: ${arg}`
+          message: `Unknown ${command} option: ${arg}`,
         };
       }
 
@@ -70,15 +70,17 @@ function parseActionCommand(
     return {
       kind: "error",
       exitCode: 1,
-      message: `Unknown ${command} option: ${arg}`
+      message: `Unknown ${command} option: ${arg}`,
     };
   }
 
-  return {kind: command, exitCode: 0, dryRun};
+  return { kind: command, exitCode: 0, dryRun };
 }
 
 export function isDevelopmentMode(): boolean {
-  return process.env.NODE_ENV === "development" || process.env.OPENWIKI_DEV === "1";
+  return (
+    process.env.NODE_ENV === "development" || process.env.OPENWIKI_DEV === "1"
+  );
 }
 
 export const helpContent: HelpContent = {
@@ -89,21 +91,21 @@ export const helpContent: HelpContent = {
   commands: [
     {
       label: "init",
-      description: "Create initial docs in openwiki/."
+      description: "Create initial docs in openwiki/.",
     },
     {
       label: "update",
-      description: "Refresh openwiki/ from repo changes."
-    }
+      description: "Refresh openwiki/ from repo changes.",
+    },
   ],
   developmentOptions: [
     {
       label: "--dry-run",
-      description: "Show what would run without invoking the agent."
-    }
+      description: "Show what would run without invoking the agent.",
+    },
   ],
   examples: ["openwiki init", "openwiki update"],
-  developmentExamples: ["openwiki init --dry-run", "openwiki update --dry-run"]
+  developmentExamples: ["openwiki init --dry-run", "openwiki update --dry-run"],
 };
 
 export function getHelpText(): string {
@@ -116,25 +118,25 @@ export function getHelpText(): string {
     "",
     "Commands",
     ...formatRows(helpContent.commands),
-    ""
+    "",
   ];
 
   if (isDevelopmentMode()) {
     helpSections.push(
       "Development Options",
       ...formatRows(helpContent.developmentOptions),
-      ""
+      "",
     );
   }
 
   helpSections.push(
     "Examples",
-    ...helpContent.examples.map((line) => `  ${line}`)
+    ...helpContent.examples.map((line) => `  ${line}`),
   );
 
   if (isDevelopmentMode()) {
     helpSections.push(
-      ...helpContent.developmentExamples.map((line) => `  ${line}`)
+      ...helpContent.developmentExamples.map((line) => `  ${line}`),
     );
   }
 
@@ -145,6 +147,6 @@ function formatRows(rows: HelpRow[]): string[] {
   const labelWidth = Math.max(...rows.map((row) => row.label.length));
 
   return rows.map(
-    (row) => `  ${row.label.padEnd(labelWidth)}  ${row.description}`
+    (row) => `  ${row.label.padEnd(labelWidth)}  ${row.description}`,
   );
 }

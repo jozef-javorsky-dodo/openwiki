@@ -1,40 +1,36 @@
 #!/usr/bin/env node
-import React, {useEffect, useState} from "react";
-import {Box, render, Text, useApp} from "ink";
+import React, { useEffect, useState } from "react";
+import { Box, render, Text, useApp } from "ink";
 import {
   helpContent,
   isDevelopmentMode,
   parseCommand,
   type CliCommand,
-  type HelpRow
+  type HelpRow,
 } from "./commands.js";
-import {
-  CredentialSetup,
-  needsCredentialSetup,
-  type CredentialSetupResult
-} from "./credentials.js";
-import {loadOpenWikiEnv} from "./env.js";
-import {runOpenWikiAgent, type OpenWikiRunResult} from "./agent.js";
+import { InitSetup, type InitSetupResult } from "./credentials.js";
+import { loadOpenWikiEnv } from "./env.js";
+import { runOpenWikiAgent } from "./agent/index.js";
+import { type OpenWikiRunResult } from "./agent/types.js";
 
 type RunState =
-  | {status: "idle"}
-  | {status: "credentials-saved"; result: CredentialSetupResult}
-  | {status: "running"; command: "init" | "update"}
-  | {status: "success"; result: OpenWikiRunResult}
-  | {status: "error"; message: string};
+  | { status: "idle" }
+  | { status: "init-setup-saved"; result: InitSetupResult }
+  | { status: "running"; command: "init" | "update" }
+  | { status: "success"; result: OpenWikiRunResult }
+  | { status: "error"; message: string };
 
 type AppProps = {
   command: CliCommand;
 };
 
-function App({command}: AppProps) {
+function App({ command }: AppProps) {
   const app = useApp();
-  const [runState, setRunState] = useState<RunState>({status: "idle"});
-  const shouldSetupCredentials =
+  const [runState, setRunState] = useState<RunState>({ status: "idle" });
+  const shouldRunInteractiveInitSetup =
     command.kind === "init" &&
     !command.dryRun &&
     process.stdin.isTTY &&
-    needsCredentialSetup() &&
     runState.status === "idle";
 
   useEffect(() => {
@@ -50,12 +46,12 @@ function App({command}: AppProps) {
       return;
     }
 
-    if (shouldSetupCredentials) {
+    if (shouldRunInteractiveInitSetup) {
       return;
     }
 
     let isMounted = true;
-    setRunState({status: "running", command: command.kind});
+    setRunState({ status: "running", command: command.kind });
 
     runOpenWikiAgent(command.kind)
       .then((result) => {
@@ -63,7 +59,7 @@ function App({command}: AppProps) {
           return;
         }
 
-        setRunState({status: "success", result});
+        setRunState({ status: "success", result });
       })
       .catch((error: unknown) => {
         if (!isMounted) {
@@ -73,14 +69,16 @@ function App({command}: AppProps) {
         setRunState({
           status: "error",
           message:
-            error instanceof Error ? error.message : "OpenWiki agent run failed."
+            error instanceof Error
+              ? error.message
+              : "OpenWiki agent run failed.",
         });
       });
 
     return () => {
       isMounted = false;
     };
-  }, [app, command, shouldSetupCredentials]);
+  }, [app, command, shouldRunInteractiveInitSetup]);
 
   useEffect(() => {
     if (runState.status === "success") {
@@ -114,23 +112,26 @@ function App({command}: AppProps) {
     return <DryRunView command={command.kind} />;
   }
 
-  if (shouldSetupCredentials) {
+  if (shouldRunInteractiveInitSetup) {
     return (
-      <CredentialSetup
+      <InitSetup
         onComplete={(result) => {
-          setRunState({status: "credentials-saved", result});
+          setRunState({ status: "init-setup-saved", result });
         }}
         onError={(message) => {
-          setRunState({status: "error", message});
+          setRunState({ status: "error", message });
         }}
       />
     );
   }
 
-  if (runState.status === "credentials-saved") {
+  if (runState.status === "init-setup-saved") {
     return (
       <Box flexDirection="column">
-        <Text>Credentials saved.</Text>
+        {runState.result.savedOpenAIKey || runState.result.savedLangSmithKey ? (
+          <Text>Credentials saved.</Text>
+        ) : null}
+        <Text>{formatWorkflowSetup(runState.result)}</Text>
         <Text>Starting openwiki init...</Text>
       </Box>
     );
@@ -159,6 +160,18 @@ function App({command}: AppProps) {
   return <Text>Starting OpenWiki...</Text>;
 }
 
+function formatWorkflowSetup(result: InitSetupResult): string {
+  if (result.workflow.status === "created") {
+    return `GitHub Action created: ${result.workflow.path}`;
+  }
+
+  if (result.workflow.status === "unchanged") {
+    return `GitHub Action already exists: ${result.workflow.path}`;
+  }
+
+  return "GitHub Action creation skipped.";
+}
+
 function HelpView() {
   return (
     <Box flexDirection="column">
@@ -171,7 +184,7 @@ function HelpView() {
 
       <Section title="Usage">
         {helpContent.usage.map((line) => (
-          <Text key={line}>  {line}</Text>
+          <Text key={line}> {line}</Text>
         ))}
       </Section>
 
@@ -187,11 +200,11 @@ function HelpView() {
 
       <Section title="Examples">
         {helpContent.examples.map((line) => (
-          <Text key={line}>  {line}</Text>
+          <Text key={line}> {line}</Text>
         ))}
         {isDevelopmentMode()
           ? helpContent.developmentExamples.map((line) => (
-              <Text key={line}>  {line}</Text>
+              <Text key={line}> {line}</Text>
             ))
           : null}
       </Section>
@@ -199,7 +212,7 @@ function HelpView() {
   );
 }
 
-function DryRunView({command}: {command: "init" | "update"}) {
+function DryRunView({ command }: { command: "init" | "update" }) {
   return (
     <Box flexDirection="column">
       <Text>Dry run: openwiki {command}</Text>
@@ -216,7 +229,7 @@ type SectionProps = {
   children: React.ReactNode;
 };
 
-function Section({title, children}: SectionProps) {
+function Section({ title, children }: SectionProps) {
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Text bold>{title}</Text>
@@ -229,7 +242,7 @@ type RowsProps = {
   rows: HelpRow[];
 };
 
-function Rows({rows}: RowsProps) {
+function Rows({ rows }: RowsProps) {
   const labelWidth = Math.max(...rows.map((row) => row.label.length));
 
   return (
@@ -260,11 +273,15 @@ const command = resolveStartupCommand(parsedCommand);
 render(<App command={command} />);
 
 function resolveStartupCommand(command: CliCommand): CliCommand {
-  if (command.kind === "update" && !command.dryRun && !process.env.OPENAI_API_KEY) {
+  if (
+    command.kind === "update" &&
+    !command.dryRun &&
+    !process.env.OPENAI_API_KEY
+  ) {
     return {
       kind: "error",
       exitCode: 1,
-      message: "OPENAI_API_KEY is required to run the OpenWiki agent."
+      message: "OPENAI_API_KEY is required to run the OpenWiki agent.",
     };
   }
 
@@ -278,7 +295,7 @@ function resolveStartupCommand(command: CliCommand): CliCommand {
       kind: "error",
       exitCode: 1,
       message:
-        "OPENAI_API_KEY is required for non-interactive init. Run openwiki init in an interactive terminal to save credentials."
+        "OPENAI_API_KEY is required for non-interactive init. Run openwiki init in an interactive terminal to save credentials.",
     };
   }
 

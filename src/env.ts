@@ -1,4 +1,4 @@
-import {mkdir, readFile, writeFile, chmod} from "node:fs/promises";
+import { mkdir, readFile, writeFile, chmod } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -11,7 +11,7 @@ const managedEnvKeys = [
   "OPENAI_API_KEY",
   "LANGSMITH_API_KEY",
   "LANGCHAIN_PROJECT",
-  "LANGCHAIN_TRACING_V2"
+  "LANGCHAIN_TRACING_V2",
 ];
 
 export async function loadOpenWikiEnv(): Promise<EnvMap> {
@@ -30,18 +30,18 @@ export async function saveOpenWikiEnv(updates: EnvMap): Promise<void> {
   const currentEnv = await readOpenWikiEnv();
   const nextEnv = {
     ...currentEnv,
-    ...updates
+    ...updates,
   };
 
   await mkdir(openWikiEnvDir, {
     recursive: true,
-    mode: 0o700
+    mode: 0o700,
   });
   await chmod(openWikiEnvDir, 0o700);
 
   await writeFile(openWikiEnvPath, formatEnv(nextEnv), {
     encoding: "utf8",
-    mode: 0o600
+    mode: 0o600,
   });
   await chmod(openWikiEnvPath, 0o600);
 
@@ -108,7 +108,7 @@ function formatEnv(env: EnvMap): string {
     ...managedEnvKeys.filter((key) => env[key] !== undefined),
     ...Object.keys(env)
       .filter((key) => !managedEnvKeys.includes(key))
-      .sort()
+      .sort(),
   ];
 
   return `${keys.map((key) => `${key}=${formatEnvValue(env[key] ?? "")}`).join("\n")}\n`;
